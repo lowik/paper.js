@@ -1746,6 +1746,8 @@ new function() { // Scope for bezier intersection using fat-line clipping
                 // Link the two locations to each other.
                 loc1._intersection = loc2;
                 loc2._intersection = loc1;
+                // NOTE: Only required for boolean-debug branch.
+                (flip ? loc1 : loc2)._other = true;
                 if (!include || include(loc)) {
                     CurveLocation.insert(locations, loc, true);
                 }
