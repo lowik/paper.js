@@ -9,7 +9,7 @@
  *
  * All rights reserved.
  *
- * Date: Wed Mar 8 10:43:28 2017 +0100
+ * Date: Wed Mar 8 10:44:47 2017 +0100
  *
  ***
  *
@@ -10944,6 +10944,126 @@ var PointText = TextItem.extend({
 		return matrix ? matrix._transformBounds(bounds, bounds) : bounds;
 	}
 });
+
+ var AreaText = TextItem.extend({
+   _class: 'AreaText',
+
+   initialize: function AreaText() {
+	 this._anchor = [0,0];
+	 this._needsWrap = false;
+	 TextItem.apply(this, arguments);
+   },
+
+   getRectangle: function() {
+
+	 return this._rectangle;
+   },
+
+   setRectangle: function() {
+	   var rectangle = Rectangle.read(arguments);
+	   this._rectangle = rectangle;
+	   this.translate(rectangle.topLeft.subtract(this._matrix.getTranslation()));
+	   this._updateAnchor();
+	   this._needsWrap = true;
+	   this._changed(9);
+   },
+
+   setContent: function(content) {
+	 this._content = '' + content;
+	 this._needsWrap = true;
+	 this._changed(265);
+   },
+
+   getJustification: function() {
+	 return this._style._justification;
+   },
+
+   setJustification: function() {
+	 this._style.justification = arguments[0];
+	 this._updateAnchor();
+   },
+
+   _wrap: function(ctx) {
+	 this._lines = [];
+
+	 var words = this._content.split(' '),
+		 line = '';
+
+	 for (var i = 0; i < words.length; i++) {
+	   var testLine = line + words[i] + ' ',
+		   metrics = ctx.measureText(testLine),
+		   testWidth = metrics.width;
+	   if (testWidth > this.rectangle.width && i > 0) {
+		 this._lines.push(line);
+		 line = words[i] + ' ';
+	   }
+	   else {
+		 line = testLine;
+	   }
+	 }
+	 this._lines.push(line);
+   },
+
+   _updateAnchor: function() {
+	 var justification = this._style.getJustification(),
+		 rectangle = this.getRectangle(),
+		 anchor = new Point(0,this._style.getFontSize());
+	 if (justification == 'center') {
+	   anchor = anchor.add([rectangle.width/2,0]);
+	 }
+	 else if (justification == 'right') {
+	   anchor = anchor.add([rectangle.width,0]);
+	 }
+	 this._anchor = anchor;
+   },
+
+   _getAnchor: function() {
+
+	 return this._anchor;
+   },
+
+   _draw: function(ctx, param, viewMatrix) {
+	   if (!this._content)
+		   return;
+	   this._setStyles(ctx, param, viewMatrix);
+	   var style = this._style,
+		   hasFill = style.hasFill(),
+		   hasStroke = style.hasStroke(),
+		   rectangle = this.rectangle,
+		   anchor = this._getAnchor(),
+		   leading = style.getLeading(),
+		   shadowColor = ctx.shadowColor;
+	   ctx.font = style.getFontStyle();
+	   ctx.textAlign = style.getJustification();
+	   if (this._needsWrap) {
+		 this._wrap(ctx);
+		 this._needsWrap = false;
+	   }
+	   var lines = this._lines;
+	   for (var i = 0, l = lines.length; i < l; i++) {
+		   if ((i+1) * leading > rectangle.height)
+			   return;
+		   ctx.shadowColor = shadowColor;
+		   var line = lines[i];
+		   if (hasFill) {
+			   ctx.fillText(line, anchor.x, anchor.y);
+			   ctx.shadowColor = 'rgba(0,0,0,0)';
+		   }
+		   if (hasStroke)
+			   ctx.strokeText(line, anchor.x, anchor.y);
+		   ctx.translate(0, leading);
+	   }
+   },
+
+   _getBounds: function(matrix, options) {
+
+	   var bounds = new Rectangle(
+		 0, 0,
+		 this.rectangle.width, this.rectangle.height
+	   );
+	   return matrix ? matrix._transformBounds(bounds, bounds) : bounds;
+   }
+ });
 
 var Color = Base.extend(new function() {
 	var types = {
